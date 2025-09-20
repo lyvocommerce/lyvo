@@ -118,34 +118,45 @@ async function loadProducts() {
 function renderProducts(items) {
   gridEl.innerHTML = "";
   if (!items.length) {
-    gridEl.innerHTML = `<div class="col-span-2 text-sm text-slate-400">No results</div>`;
+    gridEl.innerHTML = `<div class="col-span-2 text-center text-muted text-sm">No results</div>`;
     return;
   }
+
   items.forEach((p) => {
     const price =
       typeof p.price === "number" ? p.price.toFixed(2) : (p.price || "");
+    const img = p.image || "https://via.placeholder.com/400x300?text=No+Image";
+
     const card = document.createElement("div");
-    card.className = "rounded-xl border border-slate-700 overflow-hidden bg-slate-900";
+    card.className =
+      "bg-card rounded-xl shadow-tile overflow-hidden hover:shadow-md transition-shadow";
+
     card.innerHTML = `
       <div class="aspect-[4/3] overflow-hidden">
-        <img src="${p.image}" alt="${escapeHtml(p.title)}" class="w-full h-full object-cover"/>
+        <img src="${img}" alt="${escapeHtml(p.title)}" class="w-full h-full object-cover"/>
       </div>
-      <div class="p-3">
-        <div class="text-sm font-semibold mb-1 line-clamp-2">${escapeHtml(p.title)}</div>
-        <div class="text-sm text-slate-300 mb-2 line-clamp-2">${escapeHtml(p.desc || "")}</div>
+      <div class="p-4">
+        <h3 class="text-base font-semibold mb-1">${escapeHtml(p.title)}</h3>
+        <p class="text-sm text-muted mb-3">${escapeHtml(p.desc || "")}</p>
         <div class="flex items-center justify-between">
-          <div class="font-semibold">${price} ${p.currency || ""}</div>
-          <button class="px-3 py-1 rounded border border-slate-700">View</button>
+          <span class="font-semibold text-text">${price} ${p.currency || ""}</span>
+          <button class="px-4 py-2 bg-accent text-white rounded-md hover:opacity-90">
+            View
+          </button>
         </div>
       </div>
     `;
-    const btn = card.querySelector("button");
-    btn.addEventListener("click", () => {
+
+    card.querySelector("button").addEventListener("click", () => {
       const url = p.aff_url || p.url;
       if (!url) return;
-      try { tg?.openLink(url, { try_instant_view: false }); }
-      catch { window.open(url, "_blank"); }
+      try {
+        tg?.openLink(url, { try_instant_view: false });
+      } catch {
+        window.open(url, "_blank");
+      }
     });
+
     gridEl.appendChild(card);
   });
 }
