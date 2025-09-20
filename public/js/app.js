@@ -1,48 +1,39 @@
 // Access Telegram WebApp object
 const tg = window.Telegram?.WebApp;
+try { tg?.expand(); } catch (_) {}
 
-// Expand WebView to full height (inside Telegram)
-try {
-  tg?.expand();
-} catch (_) {
-  /* noop */
+const user = tg?.initDataUnsafe?.user || null;
+
+async function sendToBackend(payload) {
+  try {
+    const res = await fetch("https://lyvo-be.onrender.com/webhook", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    // Покажем внутри Telegram всплывающее окно
+    tg?.showPopup({ title: "OK", message: "Event sent to backend", buttons:[{type:"close"}] });
+    console.log("Backend response:", data);
+  } catch (e) {
+    tg?.showPopup({ title: "Error", message: String(e), buttons:[{type:"close"}] });
+    console.error(e);
+  }
 }
 
-// Get user info and language safely
-const user = tg?.initDataUnsafe?.user || null;
-const lang = (user?.language_code || "en").toLowerCase().startsWith("en") ? "en" : "en"; // keep English as default
-
-// Simple greeting text (only English for MVP)
-const greeting = (name) => `Hi ${name}! Mini App is working. (lang: en)`;
-
-// Set greeting text
-const helloEl = document.getElementById("hello");
-helloEl.textContent = greeting(user?.first_name || "");
-
-// Buttons
-const sendBtn = document.getElementById("send");
-const openBtn = document.getElementById("open");
-
-// Send test event to bot (bot receives via WEB_APP_DATA)
-sendBtn?.addEventListener("click", () => {
-  try {
-    tg?.sendData(JSON.stringify({ event: "demo_click", lang: "en" }));
-    tg?.showPopup({
-      title: "Sent",
-      message: "Event sent to the bot",
-      buttons: [{ type: "close" }],
-    });
-  } catch (e) {
-    console.error("sendData error:", e);
-  }
+document.getElementById("send")?.addEventListener("click", () => {
+  const payload = {
+    event: "demo_click",
+    user_id: user?.id || null,
+    first_name: user?.first_name || null,
+    lang: (user?.language_code || "en").toLowerCase(),
+    ts: Date.now(),
+  };
+  sendToBackend(payload);
 });
 
-// Open external link
-openBtn?.addEventListener("click", () => {
-  try {
-    tg?.openLink("https://lyvo.vercel.app", { try_instant_view: false });
-  } catch (e) {
-    // If not inside Telegram, open in new tab
-    window.open("https://lyvo.vercel.app", "_blank");
-  }
+// Кнопка «Open external link» оставляем как есть
+document.getElementById("open")?.addEventListener("click", () => {
+  try { tg?.openLink("https://lyvo.vercel.app", { try_instant_view: false }); }
+  catch { window.open("https://lyvo.vercel.app", "_blank"); }
 });
