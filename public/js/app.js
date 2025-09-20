@@ -164,26 +164,36 @@ function renderProducts(items) {
     const imgSrc = p.image || "https://via.placeholder.com/800x600?text=No+Image";
 
     const card = document.createElement("div");
+    // full-height card + vertical layout
     card.className =
-      "rounded-2xl border border-[var(--border)] overflow-hidden bg-white transition-shadow hover:shadow";
+      "h-full flex flex-col rounded-2xl border border-[var(--border)] overflow-hidden bg-white transition-shadow hover:shadow";
 
     card.innerHTML = `
+      <!-- Image area with fixed aspect ratio -->
       <div class="aspect-[4/3] overflow-hidden bg-[var(--card)]">
         <img src="${imgSrc}" alt="${escapeHtml(p.title)}"
              class="w-full h-full object-cover opacity-0 transition-opacity duration-200"/>
       </div>
-      <div class="p-4">
-        <h3 class="text-[15px] font-semibold mb-1 leading-snug">${escapeHtml(p.title)}</h3>
-        <p class="text-[13px] text-[var(--muted)] mb-3 leading-snug">${escapeHtml(p.desc || "")}</p>
-        <div class="flex items-center justify-between">
+
+      <!-- Content: vertical flex so actions stay at bottom -->
+      <div class="flex flex-col p-4 h-full">
+        <!-- Text block -->
+        <div>
+          <h3 class="text-[15px] font-semibold mb-1 leading-snug">${escapeHtml(p.title)}</h3>
+          <p class="text-[13px] text-[var(--muted)] leading-snug">
+            ${escapeHtml(p.desc || "")}
+          </p>
+        </div>
+
+        <!-- Actions pinned to bottom -->
+        <div class="mt-auto pt-3 flex items-center justify-between">
           <span class="font-semibold text-[15px]">${price} ${p.currency || ""}</span>
           <button
             class="flex items-center justify-center w-10 h-10 rounded-md bg-[var(--accent)]
                    text-white hover:opacity-90 focus-ring"
             aria-label="Add to cart">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                 stroke-width="2" stroke="currentColor"
-                 class="w-5 h-5">
+                 stroke-width="2" stroke="currentColor" class="w-5 h-5">
               <path stroke-linecap="round" stroke-linejoin="round"
                 d="M2.25 2.25h1.5l1.5 13.5h13.5l1.5-9H6.75" />
               <circle cx="9" cy="20" r="1" />
@@ -201,7 +211,7 @@ function renderProducts(items) {
       img.style.opacity = "1";
     });
 
-    // Click → open product / affiliate URL
+    // Button click → open affiliate / product link
     card.querySelector("button").addEventListener("click", () => {
       const url = p.aff_url || p.url;
       if (!url) return;
