@@ -1,5 +1,5 @@
 /* public/css/custom.css */
-/* Light theme base (Apple-like) + custom UI tweaks */
+/* Light theme (Apple-like) + custom UI + BottomSheet drag-only grabber */
 
 /* ---------- Color variables ---------- */
 :root {
@@ -11,7 +11,7 @@
   --accent: #0071e3;   /* Apple blue */
 }
 
-/* ---------- Typography & smoothing ---------- */
+/* ---------- Base typography & smoothing ---------- */
 body {
   background: var(--bg);
   color: var(--text);
@@ -20,13 +20,17 @@ body {
   letter-spacing: -0.01em;
 }
 
+/* Lock browser-level bounce/refresh; reduce unintended gestures */
 html, body {
-  height: 100%;
   overscroll-behavior: none;
+  touch-action: manipulation;
 }
 
+/* App container sizing for mobile (safe viewport) */
 #app, .container {
-  height: 100dvh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  min-height: 100vh;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
@@ -34,34 +38,17 @@ html, body {
 
 /* Hide scrollbars but keep scrolling active */
 .scrollbar-none {
-  -ms-overflow-style: none;  /* IE/Edge */
-  scrollbar-width: none;     /* Firefox */
+  -ms-overflow-style: none;   /* IE/Edge */
+  scrollbar-width: none;      /* Firefox */
 }
-
 .scrollbar-none::-webkit-scrollbar {
-  display: none;             /* Chrome/Safari/Opera */
+  display: none;              /* Chrome/Safari/Opera */
 }
 
-/* ---------- Focus ring ---------- */
+/* ---------- Focus ring (keyboard) ---------- */
 .focus-ring:focus {
   outline: 2px solid rgba(0, 113, 227, 0.35);
   outline-offset: 2px;
-}
-
-/* ---------- Scrollbar hiding for horizontal areas ---------- */
-.scrollbar-none::-webkit-scrollbar { display: none; }
-.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
-
-/* ---------- Global scroll host for BottomSheet ---------- */
-html, body {
-  height: 100%;
-  overscroll-behavior: none;
-}
-#app, .container {
-  height: 100dvh;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
 }
 
 /* ---------- Header tweaks ---------- */
@@ -78,11 +65,11 @@ html, body {
   border-radius: 12px;
 }
 
-/* ---------- Product image wrapper ---------- */
+/* ---------- Product media (image area) ---------- */
 .lyvo-media {
   background: #fff;
+  padding: 16px 8px;
   min-height: 240px;
-  padding: 16px 8px;  /* 16 top/bottom, 8 sides */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -91,11 +78,50 @@ html, body {
 @media (min-width: 768px) { .lyvo-media { min-height: 320px; } }
 
 .lyvo-media img {
-  max-width: 90%;
-  max-height: 90%;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 
 /* ---------- Cart button hover ---------- */
 .lyvo-cart:hover { filter: brightness(0.95); }
 
+/* ---------- Bottom Sheet lock & drag settings ---------- */
+
+/* When sheet opens we lock page scroll */
+html.no-scroll, html.no-scroll body {
+  overflow: hidden !important;
+}
+
+/* Sheet container should not react to gestures; only inner content scrolls */
+#filterSheet {
+  overscroll-behavior: contain;
+  touch-action: none;
+  will-change: transform;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  background: #fff;
+}
+
+/* Smooth snap-back/close animation toggled by JS (.animate class) */
+#filterSheet.animate { transition: transform 180ms ease; }
+
+/* Scroll only inside the options area */
+#filterOptions {
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Visual style for the grabber */
+#sheetGrabber {
+  width: 64px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #d4d4d8; /* neutral-300 */
+}
+
+/* ---------- Motion accessibility ---------- */
+@media (prefers-reduced-motion: reduce) {
+  #filterSheet.animate { transition: none; }
+}

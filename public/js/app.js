@@ -5,7 +5,7 @@
 // - Search, Sort (popup) -> backend query params
 // - Products grid with equalized bottom actions (price + cart)
 // - Safe image resolution (local mapping + https-only guard + local fallback)
-// - Bottom Sheet Filter (multi-select) + client-side fallback filtering
+// - Bottom Sheet Filter (multi-select) + client-side fallback filtering with correct pagination
 // - Defensive null checks to avoid runtime errors
 // - All comments in English
 
@@ -20,7 +20,6 @@ const lang = (telLang || navigator.language || "en").slice(0, 2).toLowerCase();
 // ---------- DOM refs ----------
 const API = "https://lyvo-be.onrender.com"; // Render backend base URL
 
-// chips host: use tolerant selector (any nested .flex)
 const chipRowInner = document.querySelector("#chipRow .flex");
 const gridEl       = document.getElementById("grid");
 const searchEl     = document.getElementById("search");
@@ -29,7 +28,7 @@ const prevEl       = document.getElementById("prev");
 const nextEl       = document.getElementById("next");
 const pageinfoEl   = document.getElementById("pageinfo");
 
-// Bottom sheet filter elements (optional safety if absent)
+// Bottom sheet filter elements
 const filterBtn       = document.getElementById("filterBtn");
 const filterSheet     = document.getElementById("filterSheet");
 const filterBackdrop  = document.getElementById("filterBackdrop");
@@ -195,12 +194,28 @@ async function loadProducts() {
     const res  = await fetch(`${API}/products?` + params.toString());
     const data = await res.json();
     const items = Array.isArray(data.items) ? data.items : [];
-    state.total = Number.isFinite(data.total) ? data.total : items.length;
+    // If backend supports filtering, total will already match.
+    // If not, we'll recalc total after client-side filtering.
+    let totalFromApi = Number.isFinite(data.total) ? data.total : items.length;
 
-    // Client-side fallback filtering (if backend ignores filters)
+    // Client-side fallback filtering
     const filtered = applyClientFilters(items);
-    renderProducts(filtered);
-    renderPager();
+
+    // If filtering changed the list, fix pagination and total on the client
+    const usingClientFilter =
+      (f.brand.size || f.price.size || f.rating.size) ? true : false;
+
+    if (usingClientFilter) {
+      state.total = filtered.length;
+      const start = (state.page - 1) * state.page_size;
+      const paged = filtered.slice(start, start + state.page_size);
+      renderProducts(paged);
+      renderPager();
+    } else {
+      state.total = totalFromApi;
+      renderProducts(items);
+      renderPager();
+    }
   } catch (e) {
     console.error("Failed to load products:", e);
     state.total = 0;
@@ -222,6 +237,14 @@ function applyClientFilters(items) {
     return true;
   };
 
+  // rating OR logic: if both selected => threshold 4.0; if only 4.5+ => 4.5; if only 4+ => 4.0
+  let ratingThreshold = null;
+  if (f.rating.size) {
+    if (f.rating.has("4.5+") && f.rating.has("4+")) ratingThreshold = 4.0;
+    else if (f.rating.has("4.5+")) ratingThreshold = 4.5;
+    else if (f.rating.has("4+")) ratingThreshold = 4.0;
+  }
+
   return items.filter(p => {
     // brand
     if (f.brand.size) {
@@ -241,11 +264,10 @@ function applyClientFilters(items) {
       for (const r of f.price) { if (inRange(price, r)) { ok = true; break; } }
       if (!ok) return false;
     }
-    // rating
-    if (f.rating.size) {
+    // rating (OR threshold)
+    if (ratingThreshold !== null) {
       const r = typeof p.rating === "number" ? p.rating : Number(p.rating || 0);
-      if (f.rating.has("4.5+") && !(r >= 4.5)) return false;
-      if (f.rating.has("4+")   && !(r >= 4.0)) return false;
+      if (!(r >= ratingThreshold)) return false;
     }
     return true;
   });
@@ -432,13 +454,17 @@ function renderFilterOptions() {
 function openFilterSheet() {
   if (!filterSheet || !filterBackdrop) return;
   renderFilterOptions();
+  filterSheet.classList.add("animate");
   filterSheet.classList.remove("hidden");
   filterBackdrop.classList.remove("hidden");
+  document.documentElement.classList.add("no-scroll");
 }
 function closeFilterSheet() {
   if (!filterSheet || !filterBackdrop) return;
+  filterSheet.classList.add("animate");
   filterSheet.classList.add("hidden");
   filterBackdrop.classList.add("hidden");
+  document.documentElement.classList.remove("no-scroll");
 }
 
 filterBtn?.addEventListener("click", openFilterSheet);
