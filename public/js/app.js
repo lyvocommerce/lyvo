@@ -169,19 +169,20 @@ function renderProducts(items) {
 
   items.forEach(p => {
     const price  = typeof p.price === "number" ? p.price.toFixed(2) : (p.price || "");
-    const imgSrc = getImageSrc(p);
+    const key    = normTitle(p.title);
+    const local  = IMAGE_MAP[key];
+    const imgSrc = p.image || local || "img/no-image.jpg"; // fallback to local no-image
 
-    // Full-height vertical card so bottom actions align across different descriptions
+    // Full-height vertical card so bottom actions align across descriptions
     const card = document.createElement("div");
     card.className =
-      "h-full flex flex-col rounded-2xl border border-[var(--border)] overflow-hidden bg-white " +
-      "transition-shadow hover:shadow";
+      "h-full flex flex-col rounded-2xl border border-[var(--border)] overflow-hidden bg-white transition-shadow hover:shadow";
 
     card.innerHTML = `
-      <!-- Media -->
-      <div class="aspect-[4/3] overflow-hidden bg-[var(--card)] flex items-center justify-center">
+      <!-- Media with aspect ratio + padding -->
+      <div class="aspect-[4/3] bg-white overflow-hidden flex items-center justify-center py-4">
         <img src="${imgSrc}" alt="${escapeHtml(p.title)}"
-             class="max-w-full max-h-full object-contain opacity-0 transition-opacity duration-200"/>
+             class="max-w-full max-h-full object-contain bg-white opacity-0 transition-opacity duration-200"/>
       </div>
 
       <!-- Body -->
@@ -209,15 +210,13 @@ function renderProducts(items) {
     `;
 
     const img = card.querySelector("img");
-    // Fade-in on successful load; on error use local fallback once
     img.addEventListener("load", () => { img.style.opacity = "1"; });
     img.addEventListener("error", () => {
-      if (img.src.endsWith(FALLBACK_IMG)) { img.style.opacity = "1"; return; }
-      img.src = FALLBACK_IMG;
+      img.src = "img/no-image.jpg";
       img.style.opacity = "1";
     });
 
-    // Cart button => affiliate/product link
+    // Cart button => open link
     card.querySelector("button").addEventListener("click", () => {
       const url = p.aff_url || p.url;
       if (!url) return;
