@@ -1,103 +1,160 @@
 // public/js/bottomsheet-lock.js
-// Prevent Telegram WebApp from closing on swipe-down while Bottom Sheet is open.
-// Allow scrolling only inside the sheet content. Close sheet only via "Close" button.
+// Lock swipe-to-close globally, but allow closing the Bottom Sheet by dragging ONLY the grabber.
 
 (function () {
-  const sheet     = document.getElementById("filterSheet");
-  const backdrop  = document.getElementById("filterBackdrop");
-  const content   = document.getElementById("filterOptions"); // scrollable area
-
+  const sheet    = document.getElementById("filterSheet");
+  const backdrop = document.getElementById("filterBackdrop");
+  const content  = document.getElementById("filterOptions");
+  const grabber  = document.getElementById("sheetGrabber");
   if (!sheet || !backdrop) return;
 
-  // If available, ask Telegram to confirm before closing the WebApp.
   const tg = window.Telegram?.WebApp;
   try { tg?.enableClosingConfirmation(); } catch (_) {}
 
-  // -------- CSS-side guard (also add CSS in custom.css below) --------
-  // html/body overscroll is disabled via CSS to avoid "rubber-banding".
-  // Here we additionally eat touch events on the sheet container & backdrop.
+  // ---------- open/close helpers (экспортируем на window) ----------
+  function openSheet() {
+    sheet.classList.remove("hidden");
+    backdrop.classList.remove("hidden");
+    document.documentElement.classList.add("no-scroll");
+    sheet.style.transform = "translateY(0)";
+  }
+  function closeSheet() {
+    sheet.classList.add("hidden");
+    backdrop.classList.add("hidden");
+    document.documentElement.classList.remove("no-scroll");
+    sheet.style.transform = "translateY(0)";
+  }
+  window.lyvoOpenSheet  = openSheet;
+  window.lyvoCloseSheet = closeSheet;
 
+  // ---------- Блокировка нежелательных жестов вне контента ----------
   let startY = 0;
+  const opts = { passive: false };
+
+  const onTouchStart = (e) => {
+    const t = e.touches?.[0];
+    if (t) startY = t.clientY;
+  };
 
   const preventAll = (e) => {
-    // If event came from scrollable content and it CAN scroll in this direction, allow.
+    // Разрешаем скролл только в пределах контента и только когда он реально может скроллиться
     if (content && content.contains(e.target)) {
-      if (allowScrollWithinContent(e)) return; // let it bubble
+      if (allowScrollWithinContent(e)) return;
     }
-    // Block default to prevent WebView from interpreting a swipe to close.
     e.preventDefault();
   };
 
   function allowScrollWithinContent(e) {
-    if (!content) return false;
     if (e.type !== "touchmove") return false;
+    const t = e.touches?.[0];
+    if (!t) return false;
 
-    const touch = e.touches && e.touches[0];
-    if (!touch) return false;
-
-    const currentY = touch.clientY;
-    const deltaY = currentY - startY;
-
+    const dy = t.clientY - startY;
     const atTop    = content.scrollTop <= 0;
     const atBottom = Math.ceil(content.scrollTop + content.clientHeight) >= content.scrollHeight;
 
-    // Scrolling down (deltaY > 0) when at top -> would rubber-band -> block
-    if (deltaY > 0 && atTop)  return false;
-    // Scrolling up (deltaY < 0) when at bottom -> would rubber-band -> block
-    if (deltaY < 0 && atBottom) return false;
-
-    // Otherwise allow natural scroll inside content
+    if (dy > 0 && atTop)    return false; // вниз на самом верху → блок
+    if (dy < 0 && atBottom) return false; // вверх в самом низу → блок
     return true;
   }
 
-  // Attach listeners with {passive:false} so we can preventDefault
-  const opts = { passive: false };
-
-  // On touchstart, record position
-  const onStart = (e) => {
-    const t = e.touches && e.touches[0];
-    if (t) startY = t.clientY;
-  };
-
-  // Eat all moves on backdrop & sheet (header/body); content may pass through if scrollable
-  const onMove = (e) => preventAll(e);
-
-  // Enable locks when sheet is shown (we toggle hidden class in app.js)
+  // Включаем/выключаем перехват, когда лист открыт/закрыт
   const observer = new MutationObserver(() => {
-    const isOpen = !sheet.classList.contains("hidden");
-    if (isOpen) {
-      document.addEventListener("touchstart", onStart, opts);
-      document.addEventListener("touchmove", onMove,  opts);
-      // Also block the backdrop entirely (no swipe to close)
-      backdrop.addEventListener("touchmove", preventAll, opts);
+    const open = !sheet.classList.contains("hidden");
+    if (open) {
+      document.addEventListener("touchstart", onTouchStart, opts);
+      document.addEventListener("touchmove",  preventAll,  opts);
+      backdrop.addEventListener("touchmove",  preventAll,  opts);
     } else {
-      document.removeEventListener("touchstart", onStart, opts);
-      document.removeEventListener("touchmove",  onMove,  opts);
-      backdrop.removeEventListener("touchmove", preventAll, opts);
+      document.removeEventListener("touchstart", onTouchStart, opts);
+      document.removeEventListener("touchmove",  preventAll,  opts);
+      backdrop.removeEventListener("touchmove",  preventAll,  opts);
     }
   });
   observer.observe(sheet, { attributes: true, attributeFilter: ["class"] });
 
-  // Safety: also block wheel events from bubbling to the page when open
-  const onWheel = (e) => {
-    const isOpen = !sheet.classList.contains("hidden");
-    if (!isOpen) return;
-
+  // Wheel — не отдаём резиновый скролл за пределы контента
+  document.addEventListener("wheel", (e) => {
+    const open = !sheet.classList.contains("hidden");
+    if (!open) return;
     if (content && content.contains(e.target)) {
       const atTop    = content.scrollTop <= 0;
       const atBottom = Math.ceil(content.scrollTop + content.clientHeight) >= content.scrollHeight;
-      const goingUp  = e.deltaY < 0;
-      const goingDown= e.deltaY > 0;
-      // Prevent rubber band via wheel too
-      if ((goingUp && atTop) || (goingDown && atBottom)) {
-        e.preventDefault();
-        return;
-      }
-      // else allow
+      const up = e.deltaY < 0, down = e.deltaY > 0;
+      if ((up && atTop) || (down && atBottom)) e.preventDefault();
       return;
     }
-    // Non-content area: block
     e.preventDefault();
-  };
-  document.addEventListener("wheel", onWheel, { passive: false });
+  }, { passive: false });
+
+  // ---------- Grabber drag: закрыть шит свайпом за "полоску" ----------
+  if (grabber) {
+    let dragging = false;
+    let dragStartY = 0;
+    let currentY = 0;
+    const THRESHOLD = 80; // px — после этого считаем «закрыть»
+
+    const startDrag = (y) => {
+      dragging = true;
+      dragStartY = y;
+      currentY = 0;
+      sheet.classList.remove("animate");
+      sheet.style.transition = "none";
+    };
+    const moveDrag = (y) => {
+      if (!dragging) return;
+      const dy = Math.max(0, y - dragStartY); // только вниз
+      currentY = dy;
+      sheet.style.transform = `translateY(${dy}px)`;
+    };
+    const endDrag = () => {
+      if (!dragging) return;
+      dragging = false;
+      sheet.classList.add("animate");
+      sheet.style.transition = ""; // вернём CSS transition
+
+      if (currentY > THRESHOLD) {
+        // плавно уводим вниз и скрываем
+        sheet.style.transform = `translateY(100%)`;
+        setTimeout(closeSheet, 160);
+      } else {
+        // возвращаем в исходное
+        sheet.style.transform = "translateY(0)";
+      }
+    };
+
+    // touch
+    grabber.addEventListener("touchstart", (e) => {
+      const t = e.touches?.[0];
+      if (!t) return;
+      e.preventDefault(); // чтобы WebView не начал жест закрытия
+      startDrag(t.clientY);
+    }, opts);
+
+    grabber.addEventListener("touchmove", (e) => {
+      const t = e.touches?.[0];
+      if (!t) return;
+      e.preventDefault();
+      moveDrag(t.clientY);
+    }, opts);
+
+    grabber.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      endDrag();
+    });
+
+    // поддержка мышью (для десктопа/отладки)
+    grabber.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      startDrag(e.clientY);
+      const onMove = (ev) => { moveDrag(ev.clientY); };
+      const onUp   = () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        endDrag();
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup",   onUp);
+    });
+  }
 })();
