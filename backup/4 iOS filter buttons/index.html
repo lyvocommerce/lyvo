@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Lyvo — Mini App</title>
+
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Tailwind build -->
+  <link rel="stylesheet" href="css/styles.css"/>
+  <!-- Custom tokens & utilities -->
+  <link rel="stylesheet" href="css/custom.css"/>
+</head>
+
+<body>
+  <div id="app" class="container mx-auto max-w-[720px] px-4 pt-4 pb-6 relative">
+
+    <!-- Search -->
+    <section>
+      <div class="flex items-center h-12 rounded-xl border border-[var(--border)] bg-white px-4">
+        <input
+          id="search"
+          type="text"
+          placeholder="Search products"
+          class="w-full outline-none placeholder:text-neutral-400 text-[15px]"
+        />
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7"/>
+          <path d="M21 21l-3.6-3.6"/>
+        </svg>
+      </div>
+    </section>
+
+    <div class="h-4"></div>
+
+    <!-- Quick filters (chips) — horizontal scroll -->
+    <section>
+      <div id="chipRow" class="overflow-x-auto scrollbar-none">
+        <div class="flex gap-4 min-w-max"></div>
+      </div>
+    </section>
+
+    <div class="h-4"></div>
+
+    <!-- Filter / Sort  -->
+    <section>
+      <div class="grid grid-cols-2 gap-4">
+        <button
+          id="filterBtn"
+          class="h-11 px-4 rounded-xl border border-[var(--border)] bg-white
+                 text-[17px] font-medium leading-[1.1]
+                 hover:bg-neutral-50 active:bg-neutral-100 focus-ring"
+          type="button"
+        >
+          Filter
+        </button>
+
+        <button
+          id="sortBtn"
+          class="h-11 px-4 rounded-xl border border-[var(--border)] bg-white
+                 text-[17px] font-medium leading-[1.1]
+                 hover:bg-neutral-50 active:bg-neutral-100 focus-ring"
+          type="button"
+        >
+          Sort
+        </button>
+      </div>
+    </section>
+
+    <div class="h-4"></div>
+
+    <!-- Products grid -->
+    <section>
+      <div id="grid" class="grid grid-cols-2 gap-4 overflow-y-auto scrollbar-none"></div>
+    </section>
+
+    <!-- Pagination -->
+    <div class="flex items-center justify-between mt-6">
+      <button id="prev"
+        class="px-4 py-2 rounded-md border border-[var(--border)] bg-white text-[14px] focus-ring disabled:opacity-40">
+        Prev
+      </button>
+      <span id="pageinfo" class="text-[13px] text-[var(--muted)]">Page 1</span>
+      <button id="next"
+        class="px-4 py-2 rounded-md border border-[var(--border)] bg-white text-[14px] focus-ring disabled:opacity-40">
+        Next
+      </button>
+    </div>
+
+    <footer class="pt-6 text-center text-[12px] text-[var(--muted)]">
+      © Lyvo Shop.
+    </footer>
+  </div>
+
+  <!-- Backdrop for Bottom Sheet -->
+  <div
+    id="filterBackdrop"
+    class="hidden fixed inset-0 z-40 bg-black/40"
+    aria-hidden="true">
+  </div>
+
+  <!-- Bottom Sheet: Filters (multi-select) -->
+  <section
+    id="filterSheet"
+    class="hidden fixed z-50 inset-x-0 bottom-0 mx-auto w-full max-w-[720px] bg-white rounded-t-3xl shadow-xl"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="filterTitle">
+
+    <!-- Drag handle (grabber) -->
+    <div class="pt-3 flex justify-center">
+      <div id="sheetGrabber" class="h-1.5 w-12 rounded-full bg-neutral-300"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="px-4 mt-2 mb-2 flex items-center justify-between">
+      <h3 id="filterTitle" class="text-[17px] font-semibold">Filters</h3>
+      <button id="filterClose"
+              class="px-3 py-2 rounded-lg border border-[var(--border)] bg-white text-[14px] hover:bg-neutral-50">
+        Close
+      </button>
+    </header>
+
+    <!-- Content -->
+    <div id="filterOptions" class="px-4 pb-4 max-h-[60vh] overflow-y-auto scrollbar-none">
+      <!-- groups and checkboxes are rendered by app.js -->
+    </div>
+
+    <!-- Footer actions -->
+    <div class="sticky bottom-0 bg-white border-t border-[var(--border)] px-4 py-3 flex gap-3 justify-between">
+      <button id="filterClear"
+              class="flex-1 px-4 py-3 rounded-xl border border-[var(--border)] bg-white text-[15px] hover:bg-neutral-50">
+        Clear
+      </button>
+      <button id="filterApply"
+              class="flex-1 px-4 py-3 rounded-xl bg-[var(--accent)] text-white text-[15px] hover:opacity-90">
+        Apply
+      </button>
+    </div>
+  </section>
+
+  <!-- Scripts -->
+  <script src="js/app.js"></script>
+  <script src="js/bottomsheet-lock.js"></script>
+</body>
+</html>
