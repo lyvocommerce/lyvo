@@ -169,20 +169,19 @@ function renderProducts(items) {
 
   items.forEach(p => {
     const price  = typeof p.price === "number" ? p.price.toFixed(2) : (p.price || "");
-    const key    = normTitle(p.title);
-    const local  = IMAGE_MAP[key];
-    // если backend не вернул image — подставим наше локальное
-    const imgSrc = p.image || local || "/img/placeholder-1200x900.png";
+    const imgSrc = getImageSrc(p);
 
+    // Full-height vertical card so bottom actions align across different descriptions
     const card = document.createElement("div");
     card.className =
-      "h-full flex flex-col rounded-2xl border border-[var(--border)] overflow-hidden bg-white transition-shadow hover:shadow";
+      "h-full flex flex-col rounded-2xl border border-[var(--border)] overflow-hidden bg-white " +
+      "transition-shadow hover:shadow";
 
     card.innerHTML = `
-      <!-- Image wrapper: белый фон, паддинги, адаптивное вписывание -->
-      <div class="aspect-[4/3] bg-white flex items-center justify-center p-4">
+      <!-- Media -->
+      <div class="aspect-[4/3] overflow-hidden bg-[var(--card)]">
         <img src="${imgSrc}" alt="${escapeHtml(p.title)}"
-             class="max-h-full max-w-full object-contain"/>
+             class="w-full h-full object-cover opacity-0 transition-opacity duration-200"/>
       </div>
 
       <!-- Body -->
@@ -209,13 +208,16 @@ function renderProducts(items) {
       </div>
     `;
 
-    // На случай сетевого фейла подменим на статичный плейсхолдер с белым фоном
     const img = card.querySelector("img");
+    // Fade-in on successful load; on error use local fallback once
+    img.addEventListener("load", () => { img.style.opacity = "1"; });
     img.addEventListener("error", () => {
-      img.src = "/img/placeholder-1200x900.png";
+      if (img.src.endsWith(FALLBACK_IMG)) { img.style.opacity = "1"; return; }
+      img.src = FALLBACK_IMG;
+      img.style.opacity = "1";
     });
 
-    // Клик по корзине -> открываем ссылку товара
+    // Cart button => affiliate/product link
     card.querySelector("button").addEventListener("click", () => {
       const url = p.aff_url || p.url;
       if (!url) return;
@@ -226,6 +228,7 @@ function renderProducts(items) {
     gridEl.appendChild(card);
   });
 }
+
 // ---------- Pagination ----------
 function renderPager() {
   const totalPages = Math.max(1, Math.ceil(state.total / state.page_size));
