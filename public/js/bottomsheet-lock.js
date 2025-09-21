@@ -4,7 +4,8 @@
 // - Page never scrolls (only #app does)
 // - BottomSheet can be closed by dragging the grabber, not the whole app
 
-const tg = window.Telegram?.WebApp;
+window.Telegram?.WebApp?.expand();
+window.Telegram?.WebApp?.enableClosingConfirmation();
 
 try {
   tg?.expand();                     // ask for full height
