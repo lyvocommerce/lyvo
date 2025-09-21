@@ -1,5 +1,5 @@
 /* public/css/custom.css */
-/* Light theme (Apple-like) + custom UI + BottomSheet drag-only grabber */
+/* Light theme (Apple-like) + custom UI + robust scroll locking */
 
 /* ---------- Color variables ---------- */
 :root {
@@ -20,17 +20,17 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* Lock browser-level bounce/refresh; reduce unintended gestures */
+/* Page itself never scrolls; only #app does */
 html, body {
-  overscroll-behavior: none;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none; /* no chaining to Telegram's sheet */
   touch-action: manipulation;
 }
 
-/* App container sizing for mobile (safe viewport) */
+/* App container is the only scroll host */
 #app, .container {
-  min-height: 100svh;
-  min-height: 100dvh;
-  min-height: 100vh;
+  height: 100dvh;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
@@ -49,13 +49,6 @@ html, body {
 .focus-ring:focus {
   outline: 2px solid rgba(0, 113, 227, 0.35);
   outline-offset: 2px;
-}
-
-/* ---------- Header tweaks ---------- */
-.lyvo-header-logo {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px; /* iOS corner */
 }
 
 /* ---------- Chips row ---------- */
@@ -93,20 +86,21 @@ html.no-scroll, html.no-scroll body {
   overflow: hidden !important;
 }
 
-/* Sheet container should not react to gestures; only inner content scrolls */
+/* Sheet container itself doesn't scroll; only inner content does */
 #filterSheet {
   overscroll-behavior: contain;
-  touch-action: none;
+  touch-action: none;            /* disable browser gestures on sheet */
   will-change: transform;
   border-top-left-radius: 24px;
   border-top-right-radius: 24px;
   background: #fff;
+  transform: translateY(0);
 }
 
-/* Smooth snap-back/close animation toggled by JS (.animate class) */
+/* Transition helper toggled by JS */
 #filterSheet.animate { transition: transform 180ms ease; }
 
-/* Scroll only inside the options area */
+/* Scroll only inside options list */
 #filterOptions {
   overscroll-behavior: contain;
   touch-action: pan-y;

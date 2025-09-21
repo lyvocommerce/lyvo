@@ -1,70 +1,182 @@
 // public/js/bottomsheet-lock.js
-// Prevent Telegram WebApp from collapsing/closing on scroll.
-// Keep the app open until user taps explicit Close (or grabber-controlled close if implemented).
+// Robust scroll locking for Telegram WebApp (iOS-safe)
+// - Prevents scroll-chaining to Telegram's sheet
+// - Page never scrolls (only #app does)
+// - BottomSheet can be closed by dragging the grabber, not the whole app
 
 const tg = window.Telegram?.WebApp;
 
 try {
-  tg?.expand();                     // request full height
-  tg?.enableClosingConfirmation();  // confirm before closing
+  tg?.expand();                     // ask for full height
+  tg?.enableClosingConfirmation();  // confirm before closing app
 } catch (_) {
-  // no-op outside Telegram
+  // noop outside Telegram
 }
 
-/**
- * Prevent rubber-band overscroll from reaching Telegram's sheet.
- * Locks scroll within given element.
- * @param {HTMLElement} el - scrollable container
- */
-function lockScrollIn(el) {
-  if (!el) return;
+/* Find the closest vertically scrollable ancestor */
+function findScrollable(el) {
+  let node = el;
+  while (node && node !== document.documentElement) {
+    const sh = node.scrollHeight;
+    const ch = node.clientHeight;
+    if (sh && ch && sh > ch) return node;
+    node = node.parentElement;
+  }
+  return null;
+}
+
+/* Global scroll-chain blocker (captures touchmove before browser) */
+(function attachGlobalScrollLock() {
   let startY = 0;
+  let scroller = null;
 
-  el.addEventListener("touchstart", (e) => {
-    const t = e.touches && e.touches[0];
-    if (t) startY = t.clientY;
-  }, { passive: true });
+  document.addEventListener(
+    "touchstart",
+    (e) => {
+      const t = e.touches && e.touches[0];
+      if (!t) return;
+      startY = t.clientY;
 
-  el.addEventListener("touchmove", (e) => {
-    const t = e.touches && e.touches[0];
-    if (!t) return;
+      // Prefer #filterOptions if inside sheet; else nearest scrollable
+      const sheetOptions = document.getElementById("filterOptions");
+      if (sheetOptions && sheetOptions.contains(e.target)) {
+        scroller = sheetOptions;
+      } else {
+        scroller = findScrollable(e.target) || document.getElementById("app");
+      }
+    },
+    { passive: true, capture: true }
+  );
 
-    const scrollTop    = el.scrollTop;
-    const scrollHeight = el.scrollHeight;
-    const clientHeight = el.clientHeight;
+  document.addEventListener(
+    "touchmove",
+    (e) => {
+      const t = e.touches && e.touches[0];
+      if (!t) return;
 
-    const atTop    = scrollTop <= 0;
-    const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+      // If no scroller — block (avoid handing control to Telegram's sheet)
+      if (!scroller) {
+        e.preventDefault();
+        return;
+      }
 
-    const currentY  = t.clientY;
-    const movingDown = currentY > startY;
+      const st = scroller.scrollTop;
+      const ch = scroller.clientHeight;
+      const sh = scroller.scrollHeight;
 
-    // Block scroll-chaining when user hits top or bottom
-    if ((atTop && movingDown) || (atBottom && !movingDown)) {
+      const dy = t.clientY - startY;
+      const movingDown = dy > 0;
+
+      const atTop = st <= 0;
+      const atBottom = st + ch >= sh - 1;
+
+      // Block scroll-chaining at edges
+      if ((atTop && movingDown) || (atBottom && !movingDown)) {
+        e.preventDefault();
+      }
+    },
+    { passive: false, capture: true }
+  );
+
+  // Prevent pinch-zoom gesture on iOS
+  window.addEventListener(
+    "gesturestart",
+    (e) => {
       e.preventDefault();
+    },
+    { passive: false }
+  );
+})();
+
+/* BottomSheet drag-to-close only via the grabber */
+(function attachBottomSheetDrag() {
+  const sheet = document.getElementById("filterSheet");
+  const grab  = document.getElementById("sheetGrabber");
+  const closeBtn = document.getElementById("filterClose");
+
+  if (!sheet || !grab) return;
+
+  let dragging = false;
+  let startY = 0;
+  let currentY = 0;
+
+  const setTranslate = (y) => {
+    sheet.style.transform = `translateY(${Math.max(0, y)}px)`;
+  };
+
+  const endDrag = () => {
+    dragging = false;
+    sheet.style.transition = ""; // restore transitions
+    // If dragged far enough — close sheet; else snap back
+    if (currentY > 120) {
+      // simulate Close
+      closeBtn?.click();
+      // reset transform after closing to avoid flicker next open
+      requestAnimationFrame(() => setTranslate(0));
+    } else {
+      setTranslate(0);
     }
-  }, { passive: false });
-}
+  };
 
-// Init on DOM ready
-document.addEventListener("DOMContentLoaded", () => {
-  // Primary scroll host (page)
-  const scrollHost =
-    document.getElementById("app") ||
-    document.querySelector(".container") ||
-    document.scrollingElement;
+  const onStart = (y) => {
+    dragging = true;
+    startY = y;
+    currentY = 0;
+    // Disable transitions while dragging
+    sheet.style.transition = "none";
+  };
+  const onMove = (y) => {
+    if (!dragging) return;
+    currentY = y - startY;
+    if (currentY < 0) currentY = 0;
+    setTranslate(currentY);
+  };
 
-  lockScrollIn(scrollHost);
+  // Touch events
+  grab.addEventListener(
+    "touchstart",
+    (e) => {
+      const t = e.touches && e.touches[0];
+      if (!t) return;
+      onStart(t.clientY);
+    },
+    { passive: true }
+  );
+  grab.addEventListener(
+    "touchmove",
+    (e) => {
+      const t = e.touches && e.touches[0];
+      if (!t) return;
+      onMove(t.clientY);
+      e.preventDefault(); // do not pass drag to Telegram sheet
+    },
+    { passive: false }
+  );
+  grab.addEventListener(
+    "touchend",
+    () => {
+      endDrag();
+    },
+    { passive: true }
+  );
 
-  // Also lock gestures inside BottomSheet content area
-  const filterOptions = document.getElementById("filterOptions");
-  if (filterOptions) lockScrollIn(filterOptions);
-});
+  // Mouse (desktop dev)
+  grab.addEventListener("mousedown", (e) => {
+    onStart(e.clientY);
+    const onMouseMove = (me) => {
+      onMove(me.clientY);
+    };
+    const onMouseUp = () => {
+      document.removeEventListener("mousemove", onMouseMove, true);
+      document.removeEventListener("mouseup", onMouseUp, true);
+      endDrag();
+    };
+    document.addEventListener("mousemove", onMouseMove, true);
+    document.addEventListener("mouseup", onMouseUp, true);
+  });
+})();
 
-/**
- * Optional helper for custom Close button.
- * Exposed globally for convenience: window.lyvoCloseApp()
- */
+/* Optional helper to close the app explicitly */
 function closeApp() {
   try {
     tg?.disableClosingConfirmation?.();
