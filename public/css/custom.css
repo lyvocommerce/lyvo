@@ -32,6 +32,16 @@ html, body {
   overscroll-behavior: contain;
 }
 
+/* Hide scrollbars but keep scrolling active */
+.scrollbar-none {
+  -ms-overflow-style: none;  /* IE/Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;             /* Chrome/Safari/Opera */
+}
+
 /* ---------- Focus ring ---------- */
 .focus-ring:focus {
   outline: 2px solid rgba(0, 113, 227, 0.35);
