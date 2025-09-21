@@ -20,6 +20,18 @@ body {
   letter-spacing: -0.01em;
 }
 
+html, body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+#app, .container {
+  height: 100dvh;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
 /* ---------- Focus ring ---------- */
 .focus-ring:focus {
   outline: 2px solid rgba(0, 113, 227, 0.35);
@@ -76,3 +88,4 @@ html, body {
 
 /* ---------- Cart button hover ---------- */
 .lyvo-cart:hover { filter: brightness(0.95); }
+
