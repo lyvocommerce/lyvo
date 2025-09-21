@@ -91,6 +91,26 @@ function renderCategories(items) {
   });
 }
 
+// ---------- Local image map for demo items (fallback if backend image is empty) ----------
+function normTitle(t) {
+  return String(t || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+// Map normalized product titles -> local image paths
+const IMAGE_MAP = {
+  "wireless-earbuds": "img/earbuds.jpg",
+  "smart-watch": "img/smartwatch.jpg",
+  "laptop": "img/laptop.jpg",
+  "mechanical-keyboard": "img/keyboard.jpg",
+  "dog-bed": "img/dogbed.jpg",
+  "automatic-cat-feeder": "img/catfeeder.jpg",
+  "hoodie": "img/hoodie.jpg",
+  "sneakers": "img/sneakers.jpg",
+};
+
 // ---------- Products ----------
 async function loadProducts() {
   const params = new URLSearchParams();
@@ -124,7 +144,10 @@ function renderProducts(items) {
 
   items.forEach(p => {
     const price  = typeof p.price === "number" ? p.price.toFixed(2) : (p.price || "");
-    const imgSrc = p.image || "https://via.placeholder.com/800x600?text=No+Image";
+    
+    const key    = normTitle(p.title);
+    const local  = IMAGE_MAP[key];
+    const imgSrc = p.image || local || "https://via.placeholder.com/1200x900?text=No+Image";
 
     // Full-height vertical card so bottom actions align across different descriptions
     const card = document.createElement("div");
