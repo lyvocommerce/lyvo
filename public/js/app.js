@@ -179,9 +179,9 @@ function renderProducts(items) {
 
     card.innerHTML = `
       <!-- Media -->
-      <div class="aspect-[4/3] overflow-hidden bg-[var(--card)]">
+      <div class="aspect-[4/3] overflow-hidden bg-[var(--card)] flex items-center justify-center">
         <img src="${imgSrc}" alt="${escapeHtml(p.title)}"
-             class="w-full h-full object-cover opacity-0 transition-opacity duration-200"/>
+             class="max-w-full max-h-full object-contain opacity-0 transition-opacity duration-200"/>
       </div>
 
       <!-- Body -->
