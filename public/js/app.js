@@ -51,7 +51,16 @@ const IMAGE_MAP = {
   "automatic-cat-feeder": "img/catfeeder.jpg",
   "hoodie": "img/hoodie.jpg",
   "sneakers": "img/sneakers.jpg",
+
+  // NEW mappings for your current demo titles:
+  "running-shoes": "img/running-shoes.jpg",
+  "yoga-mat": "img/yoga-mat.jpg",
+  "t-shirt": "img/tshirt.jpg",
+  "denim-jacket": "img/denim-jacket.jpg",
+  "coffee-maker": "img/coffee-maker.jpg",
+  "vacuum-cleaner": "img/vacuum-cleaner.jpg",
 };
+
 const norm = s => String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
 const isHttpsOrLocal = u => {
   if (!u) return false;
