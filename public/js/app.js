@@ -135,6 +135,34 @@ function renderCategories(items) {
   });
 }
 
+// === Sticky toolbar behaviour ===
+(function stickyToolbar(){
+  const host = document.getElementById("app") || document.scrollingElement;
+  const body = document.body;
+  const normal = document.getElementById("search");
+  const compact = document.getElementById("search-compact");
+  const btnCompact = document.getElementById("filterBtn-compact");
+
+  function sync(to, from){ if(to && from && to.value!==from.value) to.value = from.value; }
+  normal?.addEventListener("input", ()=>sync(compact, normal));
+  compact?.addEventListener("input", ()=>{
+    sync(normal, compact);
+    normal.dispatchEvent(new Event("input", {bubbles:true}));
+  });
+
+  btnCompact?.addEventListener("click", ()=>{
+    document.getElementById("filterBtn")?.click();
+  });
+
+  const THRESHOLD = 56;
+  function onScroll(){
+    const sc = host?.scrollTop || document.documentElement.scrollTop || 0;
+    body.classList.toggle("is-stuck", sc>THRESHOLD);
+  }
+  (host||window).addEventListener("scroll", onScroll, {passive:true});
+  onScroll();
+})();
+
 // ---------- Local image map + safe resolution ----------
 function normTitle(t) {
   return String(t || "")

@@ -10,29 +10,90 @@
 
   <!-- Tailwind build -->
   <link rel="stylesheet" href="css/styles.css"/>
-  <!-- Custom tokens & utilities -->
+  <!-- Custom tokens & utilities (root colors, focus ring, scrollbar-none, no-scroll, sticky toolbar) -->
   <link rel="stylesheet" href="css/custom.css"/>
 </head>
 
 <body>
   <div id="app" class="container mx-auto max-w-[720px] px-4 pt-4 pb-6 relative">
 
-    <!-- Search -->
-    <section>
-      <div class="flex items-center h-12 rounded-xl border border-[var(--border)] bg-white px-4">
-        <input
-          id="search"
-          type="text"
-          placeholder="Search products"
-          class="w-full outline-none placeholder:text-neutral-400 text-[15px]"
-        />
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="7"/>
-          <path d="M21 21l-3.6-3.6"/>
-        </svg>
+    <!-- Sticky smart toolbar: normal -> compact on scroll -->
+    <section id="toolbar" class="sticky top-0 z-30">
+      <div class="toolbar-shadow pointer-events-none"></div>
+
+      <!-- Normal (default) -->
+      <div class="toolbar-normal px-0 pt-0 pb-2 bg-transparent transition-all">
+        <!-- Search -->
+        <div class="flex items-center h-11 rounded-xl border border-[var(--border)] bg-white px-4">
+          <input
+            id="search"
+            type="text"
+            placeholder="Search products"
+            class="w-full outline-none placeholder:text-neutral-400 text-[15px]"
+          />
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="7"/>
+            <path d="M21 21l-3.6-3.6"/>
+          </svg>
+        </div>
+
+        <!-- Spacer 16px -->
+        <div class="h-4"></div>
+
+        <!-- iOS-sized Filter / Sort -->
+        <div class="grid grid-cols-2 gap-4">
+          <button
+            id="filterBtn"
+            class="h-11 px-4 rounded-xl border border-[var(--border)] bg-white
+                   text-[17px] font-medium leading-[1.1]
+                   hover:bg-neutral-50 active:bg-neutral-100 focus-ring"
+            type="button">
+            Filter
+          </button>
+          <button
+            id="sortBtn"
+            class="h-11 px-4 rounded-xl border border-[var(--border)] bg-white
+                   text-[17px] font-medium leading-[1.1]
+                   hover:bg-neutral-50 active:bg-neutral-100 focus-ring"
+            type="button">
+            Sort
+          </button>
+        </div>
+      </div>
+
+      <!-- Compact (appears after scroll) -->
+      <div class="toolbar-compact bg-white border-b border-[var(--border)] px-0 py-2">
+        <div class="flex items-center gap-2">
+          <!-- Compact search 50x50 -->
+          <div class="flex items-center h-[50px] flex-1 rounded-xl border border-[var(--border)] bg-white px-4 transition-all">
+            <input
+              id="search-compact"
+              type="text"
+              placeholder="Search"
+              class="w-full outline-none placeholder:text-neutral-400 text-[15px] bg-transparent"
+            />
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="7"/>
+              <path d="M21 21l-3.6-3.6"/>
+            </svg>
+          </div>
+
+          <!-- Compact filter icon 50x50 -->
+          <button
+            id="filterBtn-compact"
+            class="w-[50px] h-[50px] rounded-xl border border-[var(--border)] bg-white grid place-items-center
+                   hover:bg-neutral-50 active:bg-neutral-100 focus-ring transition-all"
+            aria-label="Filter"
+            type="button">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 7h16M7 12h10M10 17h4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </section>
 
+    <!-- Spacer under toolbar -->
     <div class="h-4"></div>
 
     <!-- Quick filters (chips) — horizontal scroll -->
@@ -42,33 +103,7 @@
       </div>
     </section>
 
-    <div class="h-4"></div>
-
-    <!-- Filter / Sort  -->
-    <section>
-      <div class="grid grid-cols-2 gap-4">
-        <button
-          id="filterBtn"
-          class="h-11 px-4 rounded-xl border border-[var(--border)] bg-white
-                 text-[17px] font-medium leading-[1.1]
-                 hover:bg-neutral-50 active:bg-neutral-100 focus-ring"
-          type="button"
-        >
-          Filter
-        </button>
-
-        <button
-          id="sortBtn"
-          class="h-11 px-4 rounded-xl border border-[var(--border)] bg-white
-                 text-[17px] font-medium leading-[1.1]
-                 hover:bg-neutral-50 active:bg-neutral-100 focus-ring"
-          type="button"
-        >
-          Sort
-        </button>
-      </div>
-    </section>
-
+    <!-- Spacer 16px -->
     <div class="h-4"></div>
 
     <!-- Products grid -->
@@ -89,6 +124,7 @@
       </button>
     </div>
 
+    <!-- Footer -->
     <footer class="pt-6 text-center text-[12px] text-[var(--muted)]">
       © Lyvo Shop.
     </footer>
@@ -107,11 +143,11 @@
     class="hidden fixed z-50 inset-x-0 bottom-0 mx-auto w-full max-w-[720px] bg-white rounded-t-3xl shadow-xl"
     role="dialog"
     aria-modal="true"
-    aria-labelledby="filterTitle">
-
-    <!-- Drag handle (grabber) -->
+    aria-labelledby="filterTitle"
+  >
+    <!-- Drag handle -->
     <div class="pt-3 flex justify-center">
-      <div id="sheetGrabber" class="h-1.5 w-12 rounded-full bg-neutral-300"></div>
+      <div class="h-1.5 w-12 rounded-full bg-neutral-300"></div>
     </div>
 
     <!-- Header -->

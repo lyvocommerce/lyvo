@@ -119,3 +119,38 @@ html.no-scroll, html.no-scroll body {
 @media (prefers-reduced-motion: reduce) {
   #filterSheet.animate { transition: none; }
 }
+
+/* === Sticky toolbar === */
+.toolbar-compact {
+  position: sticky;
+  top: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition: opacity .22s ease, transform .22s ease;
+}
+.toolbar-normal {
+  opacity: 1;
+  transition: opacity .22s ease, transform .22s ease;
+}
+.toolbar-shadow {
+  position: sticky;
+  top: 0;
+  height: 0;
+  box-shadow: none;
+  transition: box-shadow .22s ease;
+}
+
+body.is-stuck .toolbar-normal {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+}
+body.is-stuck .toolbar-compact {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+body.is-stuck .toolbar-shadow {
+  box-shadow: 0 6px 10px -8px rgba(0,0,0,.15);
+}
