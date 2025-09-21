@@ -1,0 +1,164 @@
+/* public/css/custom.css */
+/* Light theme (Apple-like) + custom UI + robust scroll locking */
+
+/* ---------- Color variables ---------- */
+:root {
+  --bg: #ffffff;
+  --text: #1c1c1e;     /* iOS label color */
+  --muted: #6e6e73;    /* iOS secondary label */
+  --border: #e5e5ea;   /* iOS separator */
+  --card: #f9f9fb;     /* subtle surface */
+  --accent: #0071e3;   /* Apple blue */
+}
+
+/* ---------- Base typography & smoothing ---------- */
+body {
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+}
+
+/* Page itself never scrolls; only #app does */
+html, body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none; /* no chaining to Telegram's sheet */
+  touch-action: manipulation;
+}
+
+/* App container is the only scroll host */
+#app, .container {
+  height: 100dvh;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Hide scrollbars but keep scrolling active */
+.scrollbar-none {
+  -ms-overflow-style: none;   /* IE/Edge */
+  scrollbar-width: none;      /* Firefox */
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;              /* Chrome/Safari/Opera */
+}
+
+/* ---------- Focus ring (keyboard) ---------- */
+.focus-ring:focus {
+  outline: 2px solid rgba(0, 113, 227, 0.35);
+  outline-offset: 2px;
+}
+
+/* ---------- Chips row ---------- */
+.lyvo-chips { gap: 16px; }
+.lyvo-chip {
+  height: 36px;
+  border-radius: 12px;
+}
+
+/* ---------- Product media (image area) ---------- */
+.lyvo-media {
+  background: #fff;
+  padding: 16px 8px;
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (min-width: 640px) { .lyvo-media { min-height: 280px; } }
+@media (min-width: 768px) { .lyvo-media { min-height: 320px; } }
+
+.lyvo-media img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* ---------- Cart button hover ---------- */
+.lyvo-cart:hover { filter: brightness(0.95); }
+
+/* ---------- Bottom Sheet lock & drag settings ---------- */
+
+/* When sheet opens we lock page scroll */
+html.no-scroll, html.no-scroll body {
+  overflow: hidden !important;
+}
+
+/* Sheet container itself doesn't scroll; only inner content does */
+#filterSheet {
+  overscroll-behavior: contain;
+  touch-action: none;            /* disable browser gestures on sheet */
+  will-change: transform;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  background: #fff;
+  transform: translateY(0);
+}
+
+/* Transition helper toggled by JS */
+#filterSheet.animate { transition: transform 180ms ease; }
+
+/* Scroll only inside options list */
+#filterOptions {
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Visual style for the grabber */
+#sheetGrabber {
+  width: 64px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #d4d4d8; /* neutral-300 */
+}
+
+/* ---------- Motion accessibility ---------- */
+@media (prefers-reduced-motion: reduce) {
+  #filterSheet.animate { transition: none; }
+}
+
+/* === Sticky toolbar === */
+.toolbar-compact {
+  position: sticky;
+  top: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition: opacity .22s ease, transform .22s ease;
+}
+.toolbar-normal {
+  opacity: 1;
+  transition: opacity .22s ease, transform .22s ease;
+}
+.toolbar-shadow {
+  position: sticky;
+  top: 0;
+  height: 0;
+  box-shadow: none;
+  transition: box-shadow .22s ease;
+}
+
+body.is-stuck .toolbar-normal {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+}
+body.is-stuck .toolbar-compact {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+body.is-stuck .toolbar-shadow {
+  box-shadow: 0 6px 10px -8px rgba(0,0,0,.15);
+}
+
+/* тулбар «прилипает» к самому верху с учётом safe-area */
+.safe-top { top: env(safe-area-inset-top, 0px); }
+
+/* фон, чтобы не просвечивало при скролле */
+#toolbar { background: rgba(255,255,255,.95); }
+
+/* удалите лишние верхние «Spacer» ДО тулбара в html — они больше не нужны */
