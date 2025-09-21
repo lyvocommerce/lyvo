@@ -1,0 +1,78 @@
+/* public/css/custom.css */
+/* Light theme base (Apple-like) + custom UI tweaks */
+
+/* ---------- Color variables ---------- */
+:root {
+  --bg: #ffffff;
+  --text: #1c1c1e;     /* iOS label color */
+  --muted: #6e6e73;    /* iOS secondary label */
+  --border: #e5e5ea;   /* iOS separator */
+  --card: #f9f9fb;     /* subtle surface */
+  --accent: #0071e3;   /* Apple blue */
+}
+
+/* ---------- Typography & smoothing ---------- */
+body {
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- Focus ring ---------- */
+.focus-ring:focus {
+  outline: 2px solid rgba(0, 113, 227, 0.35);
+  outline-offset: 2px;
+}
+
+/* ---------- Scrollbar hiding for horizontal areas ---------- */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ---------- Global scroll host for BottomSheet ---------- */
+html, body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+#app, .container {
+  height: 100dvh;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ---------- Header tweaks ---------- */
+.lyvo-header-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px; /* iOS corner */
+}
+
+/* ---------- Chips row ---------- */
+.lyvo-chips { gap: 16px; }
+.lyvo-chip {
+  height: 36px;
+  border-radius: 12px;
+}
+
+/* ---------- Product image wrapper ---------- */
+.lyvo-media {
+  background: #fff;
+  min-height: 240px;
+  padding: 16px 8px;  /* 16 top/bottom, 8 sides */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (min-width: 640px) { .lyvo-media { min-height: 280px; } }
+@media (min-width: 768px) { .lyvo-media { min-height: 320px; } }
+
+.lyvo-media img {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+}
+
+/* ---------- Cart button hover ---------- */
+.lyvo-cart:hover { filter: brightness(0.95); }

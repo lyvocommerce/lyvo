@@ -10,32 +10,8 @@
 
   <!-- Tailwind build -->
   <link rel="stylesheet" href="css/styles.css"/>
+  <link rel="stylesheet" href="css/custom.css" />
 
-  <!-- Light theme base (Apple-like) -->
-  <style>
-    :root {
-      --bg: #ffffff;
-      --text: #1c1c1e;     /* iOS label color */
-      --muted: #6e6e73;    /* iOS secondary label */
-      --border: #e5e5ea;   /* iOS separator */
-      --card: #f9f9fb;     /* subtle surface */
-      --accent: #0071e3;   /* Apple blue */
-    }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      letter-spacing: -0.01em;
-    }
-    .focus-ring:focus {
-      outline: 2px solid rgba(0,113,227,0.35);
-      outline-offset: 2px;
-    }
-    /* hide horizontal scrollbar visuals where possible */
-    .scrollbar-none::-webkit-scrollbar { display: none; }
-    .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
-  </style>
 </head>
 <body>
   <div class="container mx-auto max-w-[720px] px-4 pt-4 pb-6">
@@ -110,5 +86,6 @@
 
   <!-- App logic -->
   <script src="js/app.js"></script>
+  <script src="js/bottomsheet-lock.js"></script>
 </body>
 </html>
