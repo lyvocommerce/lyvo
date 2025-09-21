@@ -4,7 +4,8 @@
 // - Horizontal category chips inside #chipRow
 // - Search, Sort (popup) -> backend query params
 // - Products grid with equalized bottom actions (price + cart)
-// - Image fallback + smooth fade-in
+// - Local images first + local fallback (no external placeholder)
+// - One-time error guard to avoid loops
 // - All comments in English
 
 // ---------- Telegram context ----------
@@ -15,7 +16,7 @@ try { tg?.expand(); } catch (_) { /* no-op */ }
 const telLang = tg?.initDataUnsafe?.user?.language_code || "";
 const lang = (telLang || navigator.language || "en").slice(0, 2).toLowerCase();
 
-// ---------- DOM refs ----------
+// ---------- DOM refs / config ----------
 const API = "https://lyvo-be.onrender.com"; // Render backend base URL
 
 const chipRowInner = document.querySelector("#chipRow > .flex"); // host for chips
@@ -25,6 +26,9 @@ const sortBtn      = document.getElementById("sortBtn");
 const prevEl       = document.getElementById("prev");
 const nextEl       = document.getElementById("next");
 const pageinfoEl   = document.getElementById("pageinfo");
+
+// Local fallback image (kept inside repo, avoids external requests)
+const FALLBACK_IMG = "/img/placeholder.jpg";
 
 // ---------- Catalog state ----------
 let state = {
@@ -91,7 +95,7 @@ function renderCategories(items) {
   });
 }
 
-// ---------- Local image map for demo items (fallback if backend image is empty) ----------
+// ---------- Local image map for demo items (preferred if present) ----------
 function normTitle(t) {
   return String(t || "")
     .toLowerCase()
@@ -99,16 +103,16 @@ function normTitle(t) {
     .replace(/(^-|-$)/g, "");
 }
 
-// Map normalized product titles -> local image paths
+// Map normalized product titles -> local image paths (stored in public/img)
 const IMAGE_MAP = {
-  "wireless-earbuds": "img/earbuds.jpg",
-  "smart-watch": "img/smartwatch.jpg",
-  "laptop": "img/laptop.jpg",
-  "mechanical-keyboard": "img/keyboard.jpg",
-  "dog-bed": "img/dogbed.jpg",
-  "automatic-cat-feeder": "img/catfeeder.jpg",
-  "hoodie": "img/hoodie.jpg",
-  "sneakers": "img/sneakers.jpg",
+  "wireless-earbuds": "/img/earbuds.jpg",
+  "smart-watch": "/img/smartwatch.jpg",
+  "laptop": "/img/laptop.jpg",
+  "mechanical-keyboard": "/img/keyboard.jpg",
+  "dog-bed": "/img/dogbed.jpg",
+  "automatic-cat-feeder": "/img/catfeeder.jpg",
+  "hoodie": "/img/hoodie.jpg",
+  "sneakers": "/img/sneakers.jpg",
 };
 
 // ---------- Products ----------
@@ -143,11 +147,12 @@ function renderProducts(items) {
   }
 
   items.forEach(p => {
-    const price  = typeof p.price === "number" ? p.price.toFixed(2) : (p.price || "");
-    
+    const price = typeof p.price === "number" ? p.price.toFixed(2) : (p.price || "");
+
+    // Prefer our local image, then backend image, then local fallback
     const key    = normTitle(p.title);
     const local  = IMAGE_MAP[key];
-    const imgSrc = p.image || local || "https://via.placeholder.com/1200x900?text=No+Image";
+    const imgSrc = local || p.image || FALLBACK_IMG;
 
     // Full-height vertical card so bottom actions align across different descriptions
     const card = document.createElement("div");
@@ -172,8 +177,7 @@ function renderProducts(items) {
         <div class="mt-auto pt-3 flex items-center justify-between">
           <span class="font-semibold text-[15px]">${price} ${p.currency || ""}</span>
           <button
-            class="flex items-center justify-center w-10 h-10 rounded-md bg-[var(--accent)] text-white " +
-                   "hover:opacity-90 focus-ring"
+            class="flex items-center justify-center w-10 h-10 rounded-md bg-[var(--accent)] text-white hover:opacity-90 focus-ring"
             aria-label="Add to cart">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                  stroke-width="2" stroke="currentColor" class="w-5 h-5">
@@ -189,8 +193,12 @@ function renderProducts(items) {
 
     const img = card.querySelector("img");
     img.addEventListener("load", () => { img.style.opacity = "1"; });
+
+    // One-time error guard: swap to local FALLBACK only once, no external URLs
     img.addEventListener("error", () => {
-      img.src = "https://via.placeholder.com/800x600?text=No+Image";
+      if (img.dataset.fallbackApplied === "1") return;
+      img.dataset.fallbackApplied = "1";
+      img.src = FALLBACK_IMG;
       img.style.opacity = "1";
     });
 
