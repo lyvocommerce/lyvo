@@ -179,34 +179,33 @@ function renderProducts(items) {
       "h-full flex flex-col rounded-2xl border border-[var(--border)] overflow-hidden bg-white transition-shadow hover:shadow";
 
     card.innerHTML = `
-      <!-- Media with aspect ratio + padding -->
-      <div class="aspect-[4/3] bg-white overflow-hidden flex items-center justify-center py-4">
-        <img src="${imgSrc}" alt="${escapeHtml(p.title)}"
-             class="max-w-full max-h-full object-contain bg-white opacity-0 transition-opacity duration-200"/>
-      </div>
+    <!-- Image wrapper with white bg + padding -->
+    <div class="aspect-[4/3] bg-white flex items-center justify-center p-4">
+      <img src="${imgSrc}" alt="${escapeHtml(p.title)}"
+           class="max-h-full max-w-full object-contain opacity-0 transition-opacity duration-200"/>
+    </div>
 
-      <!-- Body -->
-      <div class="flex flex-col p-4 h-full">
-        <div>
-          <h3 class="text-[15px] font-semibold mb-1 leading-snug">${escapeHtml(p.title)}</h3>
-          <p class="text-[13px] text-[var(--muted)] leading-snug">${escapeHtml(p.desc || "")}</p>
-        </div>
-
-        <div class="mt-auto pt-3 flex items-center justify-between">
-          <span class="font-semibold text-[15px]">${price} ${p.currency || ""}</span>
-          <button
-            class="flex items-center justify-center w-10 h-10 rounded-md bg-[var(--accent)] text-white hover:opacity-90 focus-ring"
-            aria-label="Add to cart">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                 stroke-width="2" stroke="currentColor" class="w-5 h-5">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M2.25 2.25h1.5l1.5 13.5h13.5l1.5-9H6.75" />
-              <circle cx="9" cy="20" r="1" />
-              <circle cx="17" cy="20" r="1" />
-            </svg>
-          </button>
-        </div>
+    <!-- Body -->
+    <div class="flex flex-col p-4 h-full">
+      <div>
+        <h3 class="text-[15px] font-semibold mb-1 leading-snug">${escapeHtml(p.title)}</h3>
+        <p class="text-[13px] text-[var(--muted)] leading-snug">${escapeHtml(p.desc || "")}</p>
       </div>
+      <div class="mt-auto pt-3 flex items-center justify-between">
+        <span class="font-semibold text-[15px]">${price} ${p.currency || ""}</span>
+        <button
+          class="flex items-center justify-center w-10 h-10 rounded-md bg-[var(--accent)] text-white hover:opacity-90 focus-ring"
+          aria-label="Add to cart">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+               stroke-width="2" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M2.25 2.25h1.5l1.5 13.5h13.5l1.5-9H6.75" />
+            <circle cx="9" cy="20" r="1" />
+            <circle cx="17" cy="20" r="1" />
+          </svg>
+        </button>
+      </div>
+    </div>
     `;
 
     const img = card.querySelector("img");
