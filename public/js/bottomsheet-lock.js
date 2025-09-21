@@ -1,92 +1,94 @@
-// bottomsheet-lock.js (ES module)
-// Prevents Telegram BottomSheet from collapsing on scroll/overscroll.
-// Allows closing ONLY via explicit call to closeApp().
-// All comments in English.
+// public/js/bottomsheet-lock.js
+// Keep BottomSheet open while allowing normal in-content scrolling.
+// Works by preventing only those gestures that would dismiss the sheet.
+// Comments are in English by request.
 
-function lockScrollIn(scrollHost) {
-  // Avoid iOS rubber-banding which can trigger sheet-dismiss
-  let startY = 0;
+let tgRef = null;
+let host = null;
+let startY = 0;
 
-  function onTouchStart(e) {
-    if (e.touches.length !== 1) return;
-    startY = e.touches[0].clientY;
+function canScroll(el) {
+  if (!el) return false;
+  return el.scrollHeight > el.clientHeight + 1;
+}
+function atTop(el) {
+  return el.scrollTop <= 0;
+}
+function atBottom(el) {
+  return el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+}
+
+function onTouchStart(e) {
+  if (!host) return;
+  // remember finger position
+  startY = (e.touches && e.touches[0] ? e.touches[0].clientY : 0) || 0;
+}
+
+function onTouchMove(e) {
+  if (!host) return;
+  if (!canScroll(host)) {
+    // no scrollable content → block vertical drag to avoid sheet close
+    e.preventDefault();
+    return;
   }
+  const y = e.touches && e.touches[0] ? e.touches[0].clientY : 0;
+  const dy = y - startY;
 
-  function onTouchMove(e) {
-    if (e.touches.length !== 1) return;
-    const dy = e.touches[0].clientY - startY;
-
-    const atTop    = scrollHost.scrollTop <= 0;
-    const atBottom = Math.ceil(scrollHost.scrollTop + scrollHost.clientHeight) >= scrollHost.scrollHeight;
-
-    // Prevent rubber-band when pulling down at top or up at bottom
-    if ((atTop && dy > 0) || (atBottom && dy < 0)) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+  // Dragging down at top? block. Dragging up at bottom? block.
+  if ((atTop(host) && dy > 0) || (atBottom(host) && dy < 0)) {
+    e.preventDefault(); // stop “rubber band” → prevents sheet collapse
   }
+  // else let the browser scroll normally
+}
 
-  function onWheel(e) {
-    const atTop    = scrollHost.scrollTop <= 0;
-    const atBottom = Math.ceil(scrollHost.scrollTop + scrollHost.clientHeight) >= scrollHost.scrollHeight;
-    const goingUp  = e.deltaY < 0;
-    const goingDown= e.deltaY > 0;
-
-    if ((atTop && goingUp) || (atBottom && goingDown)) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+function onWheel(e) {
+  if (!host) return;
+  if (!canScroll(host)) {
+    e.preventDefault();
+    return;
   }
+  const dy = e.deltaY || 0;
+  if ((atTop(host) && dy < 0) || (atBottom(host) && dy > 0)) {
+    e.preventDefault(); // don’t bubble an edge-overscroll to the sheet
+  }
+}
 
-  // Passive:false to allow preventDefault on touchmove/wheel
-  scrollHost.addEventListener("touchstart", onTouchStart, { passive: true });
-  scrollHost.addEventListener("touchmove",  onTouchMove,  { passive: false });
-  scrollHost.addEventListener("wheel",      onWheel,      { passive: false });
+export function initBottomSheetLock(tg, opts = {}) {
+  tgRef = tg || null;
 
-  // Keep body from passing overscroll to sheet
+  // Try to keep the sheet expanded and ask for explicit confirmation on close.
+  try {
+    tgRef?.expand();
+    tgRef?.enableClosingConfirmation();
+  } catch (_) {}
+
+  const selector = opts.hostSelector || "body";
+  host = document.querySelector(selector) || document.body;
+
+  // Safe defaults for mobile scroll behavior.
+  // (Add the CSS equivalents as well if you maintain a stylesheet.)
+  host.style.overscrollBehaviorY = "contain";
   document.documentElement.style.overscrollBehaviorY = "contain";
   document.body.style.overscrollBehaviorY = "contain";
-}
+  document.body.style.webkitOverflowScrolling = "touch";
 
-/**
- * Initialize BottomSheet protection and closing policy.
- * @param {any} tg - Telegram WebApp object
- * @param {{hostSelector?:string}} opts
- */
-export function initBottomSheetLock(tg, { hostSelector = "body" } = {}) {
-  try { tg?.expand?.(); } catch {}
+  // Register listeners: touch listeners MUST be {passive:false} to allow preventDefault.
+  host.addEventListener("touchstart", onTouchStart, { passive: true });
+  host.addEventListener("touchmove", onTouchMove, { passive: false });
+  host.addEventListener("wheel", onWheel, { passive: false });
 
-  // Do not let user accidentally dismiss the sheet
-  tg?.enableClosingConfirmation?.();
-
-  // Hide Telegram back button in header of WebApp
-  try { tg?.BackButton?.hide?.(); } catch {}
-
-  // Re-apply expand when viewport changes (Android)
-  tg?.onEvent?.("viewportChanged", () => {
-    try { tg.expand(); } catch {}
+  // Cleanup on hot-reload or navigation
+  window.addEventListener("beforeunload", () => {
+    host.removeEventListener("touchstart", onTouchStart);
+    host.removeEventListener("touchmove", onTouchMove);
+    host.removeEventListener("wheel", onWheel);
+    try { tgRef?.disableClosingConfirmation(); } catch (_) {}
   });
-
-  // Set theme colors if needed (optional safe defaults)
-  try {
-    tg?.setHeaderColor?.("#ffffff");
-    tg?.setBottomBarColor?.("#ffffff");
-  } catch {}
-
-  // Lock scroll within chosen host (the element that actually scrolls)
-  const host = document.querySelector(hostSelector) || document.body;
-  lockScrollIn(host);
 }
 
-/**
- * Close Mini App explicitly (for your custom Close button).
- * Will work only when you call it—otherwise the app stays open.
- */
+// Optional helper for your custom Close button
 export function closeApp(tg) {
-  try {
-    tg?.disableClosingConfirmation?.();
-    tg?.close?.();
-  } catch {
-    window.close();
-  }
+  try { tg?.disableClosingConfirmation(); } catch (_) {}
+  try { tg?.close(); } catch (_) {}
+  try { window.close(); } catch (_) {}
 }
