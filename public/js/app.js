@@ -5,26 +5,38 @@
 // - Search, Sort (popup) -> backend query params
 // - Products grid with equalized bottom actions (price + cart)
 // - Safe image resolution (local mapping + https-only guard + local fallback)
+// - Bottom Sheet Filter (multi-select) + client-side fallback filtering
+// - Defensive null checks to avoid runtime errors
 // - All comments in English
 
 // ---------- Telegram context ----------
 const tg = window.Telegram?.WebApp;
 try { tg?.expand(); } catch (_) { /* no-op */ }
 
-// ---------- Language stub (EN-only now) ----------
+// ---------- Language (EN-only for now) ----------
 const telLang = tg?.initDataUnsafe?.user?.language_code || "";
 const lang = (telLang || navigator.language || "en").slice(0, 2).toLowerCase();
 
 // ---------- DOM refs ----------
 const API = "https://lyvo-be.onrender.com"; // Render backend base URL
 
-const chipRowInner = document.querySelector("#chipRow > .flex"); // host for chips
+// chips host: use tolerant selector (any nested .flex)
+const chipRowInner = document.querySelector("#chipRow .flex");
 const gridEl       = document.getElementById("grid");
 const searchEl     = document.getElementById("search");
 const sortBtn      = document.getElementById("sortBtn");
 const prevEl       = document.getElementById("prev");
 const nextEl       = document.getElementById("next");
 const pageinfoEl   = document.getElementById("pageinfo");
+
+// Bottom sheet filter elements (optional safety if absent)
+const filterBtn       = document.getElementById("filterBtn");
+const filterSheet     = document.getElementById("filterSheet");
+const filterBackdrop  = document.getElementById("filterBackdrop");
+const filterOptionsEl = document.getElementById("filterOptions");
+const filterApplyBtn  = document.getElementById("filterApply");
+const filterClearBtn  = document.getElementById("filterClear");
+const filterCloseBtn  = document.getElementById("filterClose");
 
 // ---------- Catalog state ----------
 let state = {
@@ -33,15 +45,52 @@ let state = {
   sort: "",           // "", "price_asc", "price_desc", "popular", "newest"
   page: 1,
   page_size: 6,
-  total: 0
+  total: 0,
+  // multi-select filters (keys must match query param names)
+  filters: {
+    brand: new Set(),       // "apple", "samsung", "xiaomi", "other"
+    price: new Set(),       // "0-100", "100-300", "300+"
+    rating: new Set(),      // "4+", "4.5+"
+  },
 };
+
+// ---------- Filter groups config (for bottom sheet) ----------
+const FILTER_GROUPS = [
+  {
+    key: "brand",
+    label: "Brand",
+    options: [
+      { id: "apple",   label: "Apple" },
+      { id: "samsung", label: "Samsung" },
+      { id: "xiaomi",  label: "Xiaomi" },
+      { id: "other",   label: "Other" },
+    ],
+  },
+  {
+    key: "price",
+    label: "Price",
+    options: [
+      { id: "0-100",   label: "€0 – €100" },
+      { id: "100-300", label: "€100 – €300" },
+      { id: "300+",    label: "€300+" },
+    ],
+  },
+  {
+    key: "rating",
+    label: "Rating",
+    options: [
+      { id: "4+",   label: "4.0★ +" },
+      { id: "4.5+", label: "4.5★ +" },
+    ],
+  },
+];
 
 // ---------- Categories ----------
 async function loadCategories() {
   try {
     const res = await fetch(`${API}/categories`);
     const data = await res.json();
-    renderCategories(data.items || []);
+    renderCategories(Array.isArray(data.items) ? data.items : []);
   } catch (e) {
     console.error("Failed to load categories:", e);
     renderCategories([]);
@@ -52,11 +101,9 @@ function renderCategories(items) {
   if (!chipRowInner) return;
   chipRowInner.innerHTML = "";
 
-  // Small helper to make a chip button
   const chip = (label, active, onClick) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    // 36px height, 16px gap handled by parent flex via gap-4 in HTML
     btn.className = [
       "h-9 px-4 rounded-xl border text-[15px] whitespace-nowrap",
       active
@@ -68,7 +115,6 @@ function renderCategories(items) {
     return btn;
   };
 
-  // "All"
   chipRowInner.appendChild(
     chip("All", !state.category, () => {
       state.category = "";
@@ -78,8 +124,7 @@ function renderCategories(items) {
     })
   );
 
-  // Real categories
-  items.forEach(cat => {
+  items.forEach((cat) => {
     chipRowInner.appendChild(
       chip(cat, state.category === cat, () => {
         state.category = cat;
@@ -99,7 +144,6 @@ function normTitle(t) {
     .replace(/(^-|-$)/g, "");
 }
 
-// Map normalized product titles -> local image paths
 const IMAGE_MAP = {
   "wireless-earbuds": "img/earbuds.jpg",
   "smart-watch": "img/smartwatch.jpg",
@@ -110,13 +154,11 @@ const IMAGE_MAP = {
   "hoodie": "img/hoodie.jpg",
   "sneakers": "img/sneakers.jpg",
 };
+const FALLBACK_IMG = "img/placeholder.jpg";
 
-const FALLBACK_IMG = "img/placeholder.jpg"; // keep this in /public/img/
-
-// Accept only absolute HTTPS or our local /img/*
 function isSafeImageUrl(u) {
   if (!u || typeof u !== "string") return false;
-  if (u.startsWith("/img/") || u.startsWith("img/")) return true; // local asset
+  if (u.startsWith("/img/") || u.startsWith("img/")) return true;
   try {
     const url = new URL(u);
     return url.protocol === "https:";
@@ -124,15 +166,12 @@ function isSafeImageUrl(u) {
     return false;
   }
 }
-
 function getImageSrc(p) {
   const key = normTitle(p?.title);
   const mapped = IMAGE_MAP[key];
   if (isSafeImageUrl(mapped)) return mapped;
-
   const apiImage = p?.image;
   if (isSafeImageUrl(apiImage)) return apiImage;
-
   return FALLBACK_IMG;
 }
 
@@ -142,14 +181,25 @@ async function loadProducts() {
   if (state.q)        params.set("q", state.q);
   if (state.category) params.set("category", state.category);
   if (state.sort)     params.set("sort", state.sort);
+
+  // add selected filters as query params (backend may ignore)
+  const f = state.filters;
+  if (f.brand.size)  params.set("brand",  Array.from(f.brand).join(","));
+  if (f.price.size)  params.set("price",  Array.from(f.price).join(","));
+  if (f.rating.size) params.set("rating", Array.from(f.rating).join(","));
+
   params.set("page", String(state.page));
   params.set("page_size", String(state.page_size));
 
   try {
     const res  = await fetch(`${API}/products?` + params.toString());
     const data = await res.json();
-    state.total = data.total || 0;
-    renderProducts(data.items || []);
+    const items = Array.isArray(data.items) ? data.items : [];
+    state.total = Number.isFinite(data.total) ? data.total : items.length;
+
+    // Client-side fallback filtering (if backend ignores filters)
+    const filtered = applyClientFilters(items);
+    renderProducts(filtered);
     renderPager();
   } catch (e) {
     console.error("Failed to load products:", e);
@@ -159,7 +209,50 @@ async function loadProducts() {
   }
 }
 
+function applyClientFilters(items) {
+  const f = state.filters;
+  if (!f.brand.size && !f.price.size && !f.rating.size) return items;
+
+  const inRange = (val, range) => {
+    const num = typeof val === "number" ? val : Number(val);
+    if (!Number.isFinite(num)) return false;
+    if (range === "0-100")   return num >= 0 && num < 100;
+    if (range === "100-300") return num >= 100 && num < 300;
+    if (range === "300+")    return num >= 300;
+    return true;
+  };
+
+  return items.filter(p => {
+    // brand
+    if (f.brand.size) {
+      const brand = (p.brand || "").toString().toLowerCase();
+      let ok = false;
+      for (const b of f.brand) {
+        if (b === "other") {
+          if (brand && !["apple","samsung","xiaomi"].includes(brand)) ok = true;
+        } else if (brand === b) ok = true;
+      }
+      if (!ok) return false;
+    }
+    // price
+    if (f.price.size) {
+      const price = typeof p.price === "number" ? p.price : Number(p.price);
+      let ok = false;
+      for (const r of f.price) { if (inRange(price, r)) { ok = true; break; } }
+      if (!ok) return false;
+    }
+    // rating
+    if (f.rating.size) {
+      const r = typeof p.rating === "number" ? p.rating : Number(p.rating || 0);
+      if (f.rating.has("4.5+") && !(r >= 4.5)) return false;
+      if (f.rating.has("4+")   && !(r >= 4.0)) return false;
+    }
+    return true;
+  });
+}
+
 function renderProducts(items) {
+  if (!gridEl) return;
   gridEl.innerHTML = "";
   if (!items.length) {
     gridEl.innerHTML =
@@ -167,11 +260,10 @@ function renderProducts(items) {
     return;
   }
 
-  items.forEach(p => {
+  items.forEach((p) => {
     const price  = typeof p.price === "number" ? p.price.toFixed(2) : (p.price || "");
     const imgSrc = getImageSrc(p);
 
-    // Full-height vertical card so bottom actions align across different descriptions
     const card = document.createElement("div");
     card.className =
       "h-full flex flex-col rounded-2xl border border-[var(--border)] overflow-hidden bg-white " +
@@ -209,21 +301,24 @@ function renderProducts(items) {
     `;
 
     const img = card.querySelector("img");
-    // Fade-in on successful load; on error use local fallback once
-    img.addEventListener("load", () => { img.style.opacity = "1"; });
-    img.addEventListener("error", () => {
-      if (img.src.endsWith(FALLBACK_IMG)) { img.style.opacity = "1"; return; }
-      img.src = FALLBACK_IMG;
-      img.style.opacity = "1";
-    });
+    if (img) {
+      img.addEventListener("load", () => { img.style.opacity = "1"; });
+      img.addEventListener("error", () => {
+        if (img.src.endsWith(FALLBACK_IMG)) { img.style.opacity = "1"; return; }
+        img.src = FALLBACK_IMG;
+        img.style.opacity = "1";
+      });
+    }
 
-    // Cart button => affiliate/product link
-    card.querySelector("button").addEventListener("click", () => {
-      const url = p.aff_url || p.url;
-      if (!url) return;
-      try { tg?.openLink(url, { try_instant_view: false }); }
-      catch { window.open(url, "_blank"); }
-    });
+    const btn = card.querySelector("button");
+    if (btn) {
+      btn.addEventListener("click", () => {
+        const url = p.aff_url || p.url;
+        if (!url) return;
+        try { tg?.openLink(url, { try_instant_view: false }); }
+        catch { window.open(url, "_blank"); }
+      });
+    }
 
     gridEl.appendChild(card);
   });
@@ -231,6 +326,7 @@ function renderProducts(items) {
 
 // ---------- Pagination ----------
 function renderPager() {
+  if (!pageinfoEl || !prevEl || !nextEl) return;
   const totalPages = Math.max(1, Math.ceil(state.total / state.page_size));
   pageinfoEl.textContent = `Page ${state.page} / ${totalPages}`;
   prevEl.disabled = state.page <= 1;
@@ -263,9 +359,7 @@ const SORT_OPTIONS = [
   { id: "popular",   label: "Popular" },
   { id: "newest",    label: "Newest" },
 ];
-
 sortBtn?.addEventListener("click", () => {
-  // In Telegram — native popup with buttons and button_id callback
   if (tg?.showPopup) {
     tg.showPopup({
       title: "Sort by",
@@ -273,7 +367,6 @@ sortBtn?.addEventListener("click", () => {
       buttons: SORT_OPTIONS.map(o => ({ id: o.id, type: "default", text: o.label }))
     });
   } else {
-    // Outside Telegram — simple prompt fallback
     const labels = SORT_OPTIONS.map((o, i) => `${i}: ${o.label}`).join("\n");
     const pick = window.prompt(`Sort by:\n${labels}\n\nEnter index (0-${SORT_OPTIONS.length - 1})`, "0");
     const idx = Number(pick);
@@ -284,12 +377,9 @@ sortBtn?.addEventListener("click", () => {
     }
   }
 });
-
-// Telegram popup callback
 if (tg?.onEvent) {
   tg.onEvent("popupClosed", (e) => {
     const id = e?.button_id ?? "";
-    // If user tapped a button with id present in our options
     if (SORT_OPTIONS.some(o => o.id === id)) {
       state.sort = id;
       state.page = 1;
@@ -297,6 +387,76 @@ if (tg?.onEvent) {
     }
   });
 }
+
+// ---------- Bottom Sheet Filter wiring ----------
+function renderFilterOptions() {
+  if (!filterOptionsEl) return;
+  filterOptionsEl.innerHTML = "";
+
+  FILTER_GROUPS.forEach(group => {
+    const wrap = document.createElement("div");
+    wrap.className = "mb-4";
+    wrap.innerHTML = `<h4 class="text-[15px] font-semibold mb-2">${group.label}</h4>`;
+    const list = document.createElement("div");
+    list.className = "flex flex-wrap gap-2";
+
+    group.options.forEach(opt => {
+      const id = `${group.key}__${opt.id}`;
+      const label = document.createElement("label");
+      label.setAttribute("for", id);
+      label.className =
+        "inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border)] bg-white text-[14px] cursor-pointer select-none";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.id = id;
+      input.className = "accent-[var(--accent)]";
+      input.checked = !!state.filters[group.key]?.has(opt.id);
+      input.addEventListener("change", () => {
+        const set = state.filters[group.key];
+        if (!(set instanceof Set)) return;
+        if (input.checked) set.add(opt.id);
+        else set.delete(opt.id);
+      });
+      const span = document.createElement("span");
+      span.textContent = opt.label;
+      label.appendChild(input);
+      label.appendChild(span);
+      list.appendChild(label);
+    });
+
+    wrap.appendChild(list);
+    filterOptionsEl.appendChild(wrap);
+  });
+}
+
+function openFilterSheet() {
+  if (!filterSheet || !filterBackdrop) return;
+  renderFilterOptions();
+  filterSheet.classList.remove("hidden");
+  filterBackdrop.classList.remove("hidden");
+}
+function closeFilterSheet() {
+  if (!filterSheet || !filterBackdrop) return;
+  filterSheet.classList.add("hidden");
+  filterBackdrop.classList.add("hidden");
+}
+
+filterBtn?.addEventListener("click", openFilterSheet);
+filterBackdrop?.addEventListener("click", closeFilterSheet);
+filterCloseBtn?.addEventListener("click", closeFilterSheet);
+
+filterClearBtn?.addEventListener("click", () => {
+  Object.keys(state.filters).forEach(k => {
+    if (state.filters[k] instanceof Set) state.filters[k].clear();
+  });
+  renderFilterOptions();
+});
+
+filterApplyBtn?.addEventListener("click", () => {
+  state.page = 1;
+  closeFilterSheet();
+  loadProducts();
+});
 
 // ---------- Helpers ----------
 function escapeHtml(str) {

@@ -10,11 +10,12 @@
 
   <!-- Tailwind build -->
   <link rel="stylesheet" href="css/styles.css"/>
-  <link rel="stylesheet" href="css/custom.css" />
-
+  <!-- Custom tokens & utilities (root colors, focus ring, scrollbar-none, no-scroll) -->
+  <link rel="stylesheet" href="css/custom.css"/>
 </head>
+
 <body>
-  <div class="container mx-auto max-w-[720px] px-4 pt-4 pb-6">
+  <div class="container mx-auto max-w-[720px] px-4 pt-4 pb-6 relative">
 
     <!-- Spacer 20px -->
     <div class="h-5"></div>
@@ -30,7 +31,7 @@
     <!-- Spacer 16px -->
     <div class="h-4"></div>
 
-    <!-- Search + Sort -->
+    <!-- Search + Filter + Sort -->
     <section>
       <div class="flex items-center gap-4">
         <!-- Search -->
@@ -46,6 +47,14 @@
             <path d="M21 21l-3.6-3.6"/>
           </svg>
         </div>
+
+        <!-- Filter button (opens Bottom Sheet) -->
+        <button
+          id="filterBtn"
+          class="h-12 px-5 rounded-xl border border-[var(--border)] bg-white text-[15px] font-medium hover:bg-neutral-50 active:scale-[0.99] transition"
+        >
+          Filter
+        </button>
 
         <!-- Sort button -->
         <button
@@ -84,8 +93,56 @@
     </footer>
   </div>
 
+  <!-- Backdrop for Bottom Sheet -->
+  <div
+    id="filterBackdrop"
+    class="hidden fixed inset-0 z-40 bg-black/40"
+    aria-hidden="true">
+  </div>
+
+  <!-- Bottom Sheet: Filters -->
+  <section
+    id="filterSheet"
+    class="hidden fixed z-50 inset-x-0 bottom-0 mx-auto w-full max-w-[720px] bg-white rounded-t-3xl shadow-xl"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="filterTitle"
+  >
+    <!-- Drag handle -->
+    <div class="pt-3 flex justify-center">
+      <div class="h-1.5 w-12 rounded-full bg-neutral-300"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="px-4 mt-2 mb-2 flex items-center justify-between">
+      <h3 id="filterTitle" class="text-[17px] font-semibold">Filters</h3>
+      <button id="filterClose"
+              class="px-3 py-2 rounded-lg border border-[var(--border)] bg-white text-[14px] hover:bg-neutral-50">
+        Close
+      </button>
+    </header>
+
+    <!-- Content -->
+    <div id="filterOptions" class="px-4 pb-4 max-h-[60vh] overflow-y-auto scrollbar-none">
+      <!-- groups rendered by app.js -->
+    </div>
+
+    <!-- Footer actions -->
+    <div class="sticky bottom-0 bg-white border-t border-[var(--border)] px-4 py-3 flex gap-3 justify-between">
+      <button id="filterClear"
+              class="flex-1 px-4 py-3 rounded-xl border border-[var(--border)] bg-white text-[15px] hover:bg-neutral-50">
+        Clear
+      </button>
+      <button id="filterApply"
+              class="flex-1 px-4 py-3 rounded-xl bg-[var(--accent)] text-white text-[15px] hover:opacity-90">
+        Apply
+      </button>
+    </div>
+  </section>
+
   <!-- App logic -->
   <script src="js/app.js"></script>
+  <!-- Optional scroll-lock helper (если используешь) -->
   <script src="js/bottomsheet-lock.js"></script>
 </body>
 </html>
