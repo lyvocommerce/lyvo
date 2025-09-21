@@ -99,3 +99,30 @@ html, body {
 /* ---------- Cart button hover ---------- */
 .lyvo-cart:hover { filter: brightness(0.95); }
 
+/* Lock page overscroll to avoid swipe-to-close in Telegram WebApp */
+html, body {
+  overscroll-behavior: none;      /* block browser-level pull-to-refresh / bounce */
+  touch-action: manipulation;     /* reduce unintended gestures */
+}
+
+/* Bottom Sheet: don't treat the container as a scroll target */
+#filterSheet {
+  overscroll-behavior: contain;
+  touch-action: none;             /* no gestures on the container itself */
+}
+
+/* Only the inner content area should scroll */
+#filterOptions {
+  overscroll-behavior: contain;
+  touch-action: pan-y;            /* allow vertical scrolling here */
+}
+
+/* Optional: while sheet is open you can add .no-scroll to html to lock page scroll */
+html.no-scroll, html.no-scroll body {
+  overflow: hidden !important;
+}
+
+/* Existing helpers if not present */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+

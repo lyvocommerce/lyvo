@@ -11,7 +11,8 @@
 
 // ---------- Telegram context ----------
 const tg = window.Telegram?.WebApp;
-try { tg?.expand(); } catch (_) { /* no-op */ }
+try { tg?.expand(); } catch (_) {}
+try { tg?.enableClosingConfirmation(); } catch (_) {}
 
 // ---------- Language (EN-only for now) ----------
 const telLang = tg?.initDataUnsafe?.user?.language_code || "";
