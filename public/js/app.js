@@ -4,8 +4,7 @@
 // - Horizontal category chips inside #chipRow
 // - Search, Sort (popup) -> backend query params
 // - Products grid with equalized bottom actions (price + cart)
-// - Local images first + local fallback (no external placeholder)
-// - One-time error guard to avoid loops
+// - Safe image resolution (local mapping + https-only guard + local fallback)
 // - All comments in English
 
 // ---------- Telegram context ----------
@@ -16,7 +15,7 @@ try { tg?.expand(); } catch (_) { /* no-op */ }
 const telLang = tg?.initDataUnsafe?.user?.language_code || "";
 const lang = (telLang || navigator.language || "en").slice(0, 2).toLowerCase();
 
-// ---------- DOM refs / config ----------
+// ---------- DOM refs ----------
 const API = "https://lyvo-be.onrender.com"; // Render backend base URL
 
 const chipRowInner = document.querySelector("#chipRow > .flex"); // host for chips
@@ -26,9 +25,6 @@ const sortBtn      = document.getElementById("sortBtn");
 const prevEl       = document.getElementById("prev");
 const nextEl       = document.getElementById("next");
 const pageinfoEl   = document.getElementById("pageinfo");
-
-// Local fallback image (kept inside repo, avoids external requests)
-const FALLBACK_IMG = "/img/placeholder.jpg";
 
 // ---------- Catalog state ----------
 let state = {
@@ -56,7 +52,7 @@ function renderCategories(items) {
   if (!chipRowInner) return;
   chipRowInner.innerHTML = "";
 
-  // small helper to make a chip button
+  // Small helper to make a chip button
   const chip = (label, active, onClick) => {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -95,7 +91,7 @@ function renderCategories(items) {
   });
 }
 
-// ---------- Local image map for demo items (preferred if present) ----------
+// ---------- Local image map + safe resolution ----------
 function normTitle(t) {
   return String(t || "")
     .toLowerCase()
@@ -103,17 +99,42 @@ function normTitle(t) {
     .replace(/(^-|-$)/g, "");
 }
 
-// Map normalized product titles -> local image paths (stored in public/img)
+// Map normalized product titles -> local image paths
 const IMAGE_MAP = {
-  "wireless-earbuds": "/img/earbuds.jpg",
-  "smart-watch": "/img/smartwatch.jpg",
-  "laptop": "/img/laptop.jpg",
-  "mechanical-keyboard": "/img/keyboard.jpg",
-  "dog-bed": "/img/dogbed.jpg",
-  "automatic-cat-feeder": "/img/catfeeder.jpg",
-  "hoodie": "/img/hoodie.jpg",
-  "sneakers": "/img/sneakers.jpg",
+  "wireless-earbuds": "img/earbuds.jpg",
+  "smart-watch": "img/smartwatch.jpg",
+  "laptop": "img/laptop.jpg",
+  "mechanical-keyboard": "img/keyboard.jpg",
+  "dog-bed": "img/dogbed.jpg",
+  "automatic-cat-feeder": "img/catfeeder.jpg",
+  "hoodie": "img/hoodie.jpg",
+  "sneakers": "img/sneakers.jpg",
 };
+
+const FALLBACK_IMG = "img/placeholder.jpg"; // keep this in /public/img/
+
+// Accept only absolute HTTPS or our local /img/*
+function isSafeImageUrl(u) {
+  if (!u || typeof u !== "string") return false;
+  if (u.startsWith("/img/") || u.startsWith("img/")) return true; // local asset
+  try {
+    const url = new URL(u);
+    return url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function getImageSrc(p) {
+  const key = normTitle(p?.title);
+  const mapped = IMAGE_MAP[key];
+  if (isSafeImageUrl(mapped)) return mapped;
+
+  const apiImage = p?.image;
+  if (isSafeImageUrl(apiImage)) return apiImage;
+
+  return FALLBACK_IMG;
+}
 
 // ---------- Products ----------
 async function loadProducts() {
@@ -147,12 +168,8 @@ function renderProducts(items) {
   }
 
   items.forEach(p => {
-    const price = typeof p.price === "number" ? p.price.toFixed(2) : (p.price || "");
-
-    // Prefer our local image, then backend image, then local fallback
-    const key    = normTitle(p.title);
-    const local  = IMAGE_MAP[key];
-    const imgSrc = local || p.image || FALLBACK_IMG;
+    const price  = typeof p.price === "number" ? p.price.toFixed(2) : (p.price || "");
+    const imgSrc = getImageSrc(p);
 
     // Full-height vertical card so bottom actions align across different descriptions
     const card = document.createElement("div");
@@ -192,12 +209,10 @@ function renderProducts(items) {
     `;
 
     const img = card.querySelector("img");
+    // Fade-in on successful load; on error use local fallback once
     img.addEventListener("load", () => { img.style.opacity = "1"; });
-
-    // One-time error guard: swap to local FALLBACK only once, no external URLs
     img.addEventListener("error", () => {
-      if (img.dataset.fallbackApplied === "1") return;
-      img.dataset.fallbackApplied = "1";
+      if (img.src.endsWith(FALLBACK_IMG)) { img.style.opacity = "1"; return; }
       img.src = FALLBACK_IMG;
       img.style.opacity = "1";
     });
